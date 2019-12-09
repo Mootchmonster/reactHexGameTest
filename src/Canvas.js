@@ -28,8 +28,17 @@ constructor(props){
         this.drawHexes();
     }   
 
-    componentUpdate(nextProps, nextState){
-        
+    shouldComponentUpdate(nextProps, nextState){
+        if(nextState.currentHex !== this.state.currentHex){
+            const {c,r,s,x,y} = nextState.currentHex;
+            const {canvasWidth, canvasHeight} = this.state.canvasSize;
+            const ctx = this.canvasCoordinates.getContext("2d");
+            ctx.clearRect(0,0, canvasWidth, canvasHeight);
+            this.drawNeighbors(this.Hex(c,r,s));
+            this.drawHex(this.canvasCoordinates, this.Point(x,y), "lime", 2);
+            return true;
+        }
+        return false;
     }
 
     drawHexes(){
@@ -41,7 +50,6 @@ constructor(props){
         let cRightSide = Math.round((canvasWidth - hexOrigin.x)/horizDist);
         let rTopSide = Math.round(hexOrigin.y /verticalDist);
         let rBottomSide = Math.round((canvasHeight - hexOrigin.y)/verticalDist);
-        console.log(cLeftSide, cRightSide, rTopSide, rBottomSide);
         var p = 0;
         for(let r = 0; r<= rBottomSide; r++){
             if(r%2 === 0 && r !==0){
@@ -52,7 +60,7 @@ constructor(props){
                 const{x,y}= this.hexToPixel(this.Hex(c-p,r));
                 if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
                     this.drawHex(this.canvasHex, this.Point(x,y));
-                    this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c-p,r,-c-r));
+                    this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c-p,r,-(c-p)-r));
                 }
             }
         }
@@ -66,7 +74,7 @@ constructor(props){
                 const{x,y}= this.hexToPixel(this.Hex(c+n,r));
                 if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
                     this.drawHex(this.canvasHex, this.Point(x,y));
-                    this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c+n,r,-c-r));
+                    this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c+n,r,-(c+n)-r));
                 }
             }
         }
@@ -144,6 +152,20 @@ constructor(props){
         return this.Hex(c, r, -c-r);
     }
 
+    cubeDirection(direction){
+        const cubeDirections = [this.Hex(1,0,-1), this.Hex(1,-1,0), this.Hex(0,-1,1),
+                                this.Hex(-1,0,1), this.Hex(-1,1,0), this.Hex(0,1,-1)]
+        return cubeDirections[direction];
+    }
+
+    cubeAdd(a,b){
+        return this.Hex(a.c + b.c, a.r + b.r, a.s + b.s);
+    }
+
+    getCubeNeighbor(h, direction){
+        return this.cubeAdd(h,this.cubeDirection(direction));
+    }
+
     cubeRound(cube){
         var rx = Math.round(cube.c)
         var ry = Math.round(cube.r)
@@ -175,6 +197,14 @@ constructor(props){
         return{c: c, r: r, s:s}
     }
 
+    drawNeighbors(currentHex){
+        for(let i = 0; i <= 5; i++){
+            const {c,r,s} = this.getCubeNeighbor(this.Hex(currentHex.c, currentHex.r, currentHex.s), i);
+            const {x,y} = this.hexToPixel(this.Hex(c,r,s));
+            this.drawHex(this.canvasCoordinates, this.Point(x,y), "red", 2);
+        }
+    }
+
     handleMouseMove(e){
         //onMouseMove = {this.handleMouseMove} => handleMouseMove
         //componentDidMount => this.getCanvasPosition(this.canvasCoordinates); => canvasPosition
@@ -183,8 +213,10 @@ constructor(props){
         let offsetY = e.pageY - top;
         const {c,r,s} = this.cubeRound( this.pixelToHex(this.Point(offsetX,offsetY)));
         const {x, y} = this.hexToPixel(this.Hex(c,r,s));
-        this.drawHex(this.canvasCoordinates, this.Point(x,y), "green", 2);
-        console.log(c,r,s);
+        console.log(c,r,s,x,y);
+        this.setState({
+            currentHex: {c,r,s,x,y}
+        })
     }
 
     render(){
