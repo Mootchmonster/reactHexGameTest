@@ -34,7 +34,11 @@ constructor(props){
             const {canvasWidth, canvasHeight} = this.state.canvasSize;
             const ctx = this.canvasCoordinates.getContext("2d");
             ctx.clearRect(0,0, canvasWidth, canvasHeight);
-            this.drawNeighbors(this.Hex(c,r,s));
+            //this.drawNeighbors(this.Hex(c,r,s));
+            let currentDistanceLine = nextState.currentDistanceLine;
+            for(let i = 0; i <= currentDistanceLine.length - 1; i++){
+                this.drawHex(this.canvasCoordinates, this.Point(currentDistanceLine[i].x, currentDistanceLine[i].y), "lime", 2);
+            }
             this.drawHex(this.canvasCoordinates, this.Point(x,y), "lime", 2);
             return true;
         }
@@ -59,7 +63,7 @@ constructor(props){
                 //deconstruct hexToPixel result
                 const{x,y}= this.hexToPixel(this.Hex(c-p,r));
                 if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
-                    this.drawHex(this.canvasHex, this.Point(x,y));
+                    this.drawHex(this.canvasHex, this.Point(x,y), "grey");
                     this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c-p,r,-(c-p)-r));
                 }
             }
@@ -73,7 +77,7 @@ constructor(props){
                 //deconstruct hexToPixel result
                 const{x,y}= this.hexToPixel(this.Hex(c+n,r));
                 if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
-                    this.drawHex(this.canvasHex, this.Point(x,y));
+                    this.drawHex(this.canvasHex, this.Point(x,y), "grey");
                     this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c+n,r,-(c+n)-r));
                 }
             }
@@ -162,6 +166,10 @@ constructor(props){
         return this.Hex(a.c + b.c, a.r + b.r, a.s + b.s);
     }
 
+    cubeSubtract(hexA, hexB){
+        return this.Hex(hexA.c - hexB.c, hexA.r - hexB.r, hexA.s - hexB.s);
+    }
+
     getCubeNeighbor(h, direction){
         return this.cubeAdd(h,this.cubeDirection(direction));
     }
@@ -187,6 +195,30 @@ constructor(props){
         return this.Hex(rx, ry, rz)
     }
 
+    getDistanceLine(hexA, hexB){
+        let dist = this.cubeDistance(hexA, hexB);
+        var arr = [];
+        for (let i = 0; i <= dist; i++){
+            let center = this.hexToPixel(this.cubeRound(this.cubeLinearInt(hexA, hexB, 1.0 / dist * i)));
+            arr = [].concat(arr, center);
+        }
+        this.setState({
+            currentDistanceLine: arr
+        });
+    }
+
+    cubeDistance(hexA, hexB){
+        const {c,r,s} = this.cubeSubtract(hexA, hexB)
+        return (Math.abs(c) + Math.abs(r) + Math.abs(s))/2;
+    }
+
+    cubeLinearInt(hexA, hexB, t){
+        return this.Hex(this.linearInt(hexA.c, hexB.c, t), this.linearInt(hexA.r, hexB.r, t), this.linearInt(hexA.s, hexB.s, t));
+    }
+
+    linearInt(a,b,t){
+        return (a + (b-a) * t);
+    }
 
     Point(x,y){
         return {x: x, y: y}
@@ -209,14 +241,18 @@ constructor(props){
         //onMouseMove = {this.handleMouseMove} => handleMouseMove
         //componentDidMount => this.getCanvasPosition(this.canvasCoordinates); => canvasPosition
         const {left, right, top, bottom} = this.state.canvasPosition;
+        const {canvasWidth, canvasHeight} = this.state.canvasSize;
+        const {width, height, verticalDist, horizDist} = this.state.hexParameters;
         let offsetX = e.pageX - left;
         let offsetY = e.pageY - top;
         const {c,r,s} = this.cubeRound( this.pixelToHex(this.Point(offsetX,offsetY)));
         const {x, y} = this.hexToPixel(this.Hex(c,r,s));
-        console.log(c,r,s,x,y);
+        this.getDistanceLine(this.Hex(0,0,0), this.Hex(c,r,s));
+        if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
         this.setState({
             currentHex: {c,r,s,x,y}
         })
+    }   
     }
 
     render(){
