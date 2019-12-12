@@ -18,3 +18,8 @@ canvas{
   left:0;
   top:0;
 }
+
+.expandButton {
+  position: absolute;
+  left: 900px;
+}
