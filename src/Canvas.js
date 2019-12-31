@@ -1,20 +1,29 @@
 import React, {Component} from 'react';
 import './index.css';
 
+var DUMMY_OBSTACLES = ['{"c":1,"r":-2,"s":1}', '{"c":2,"r":-2,"s":0}', '{"c":2,"r":-1,"s":-1}', '{"c":2,"r":0,"s":-2}', 
+'{"c":-3,"r":-2,"s":5}', '{"c":-4,"r":-1,"s":5}', '{"c":-5,"r":0,"s":5}', '{"c":-5,"r":1,"s":4}', '{"c":-5,"r":2,"s":3}', 
+'{"c":-6,"r":3,"s":3}', '{"c":-6,"r":4,"s":2}', '{"c":-3,"r":6,"s":-3}', '{"c":-2,"r":6,"s":-4}', '{"c":-1,"r":6,"s":-5}', 
+'{"c":0,"r":5,"s":-5}', '{"c":1,"r":5,"s":-6}', '{"c":2,"r":5,"s":-7}', '{"c":3,"r":4,"s":-7}', '{"c":3,"r":3,"s":-6}', 
+'{"c":4,"r":2,"s":-6}', '{"c":5,"r":1,"s":-6}', '{"c":5,"r":0,"s":-5}', '{"c":5,"r":-7,"s":2}', '{"c":5,"r":-6,"s":1}', 
+'{"c":5,"r":-5,"s":0}', '{"c":5,"r":-4,"s":-1}', '{"c":6,"r":-4,"s":-2}', '{"c":7,"r":-4,"s":-3}', '{"c":8,"r":-4,"s":-4}', 
+'{"c":-1,"r":-7,"s":8}', '{"c":-2,"r":-6,"s":8}', '{"c":-3,"r":-5,"s":8}', '{"c":-4,"r":-4,"s":8}', '{"c":-5,"r":-4,"s":9}', 
+'{"c":-6,"r":-4,"s":10}', '{"c":-7,"r":-4,"s":11}']
+
 export default class Canvas extends Component{
 constructor(props){
     super(props);
     this.handleMouseMove = this.handleMouseMove.bind(this);
     this.handleClick = this.handleClick.bind(this);
-    this.handleExpandClick = this.handleExpandClick.bind(this);
     this.state = {
         hexSize: 20,
         hexOrigin: {x: 400, y:300},
         currentHex: {c:0, r:0, s:0, x:0, y:0},
-        playerPosition: {c:0, r:0, s:0, x:400, y:300},
-        obstacles: [],
-        frontier: [],
-        camefrom: {}
+        playerPosition: {c:0, r:0, s:0},
+        obstacles: DUMMY_OBSTACLES,
+        cameFrom: {},
+        hexPathMap: [],
+        path: []
     }
 }
 
@@ -36,6 +45,8 @@ constructor(props){
         this.getCanvasPosition(this.canvasInteraction);
         this.drawHex(this.canvasInteraction, this.Point(this.state.playerPosition.x, this.state.playerPosition.y), 1, "grey", "red", 0.2);
         this.drawHexes();
+        //used to load preset list of obstacles
+        this.drawObstacles();
     }   
 
     shouldComponentUpdate(nextProps, nextState){
@@ -44,6 +55,7 @@ constructor(props){
             const {canvasWidth, canvasHeight} = this.state.canvasSize;
             const ctx = this.canvasInteraction.getContext("2d");
             ctx.clearRect(0,0, canvasWidth, canvasHeight);
+    
             //this.drawNeighbors(this.Hex(c,r,s));
             let currentDistanceLine = nextState.currentDistanceLine;
             for(let i = 0; i <= currentDistanceLine.length - 1; i++){
@@ -54,11 +66,12 @@ constructor(props){
                     this.drawHex(this.canvasInteraction, this.Point(currentDistanceLine[i].x, currentDistanceLine[i].y),1, "black",  "grey");
                 }
             }
-            nextState.obstacles.map((l)=>{
-                const {c,r,s} = JSON.parse(l);
-                const {x,y} = this.hexToPixel(this.Hex(c,r,s));
-                this.drawHex(this.canvasInteraction, this.Point(x,y),1, "black",  "black");
-            })
+            //used to draw obstacles onclick
+            // nextState.obstacles.map((l)=>{
+            //     const {c,r,s} = JSON.parse(l);
+            //     const {x,y} = this.hexToPixel(this.Hex(c,r,s));
+            //     this.drawHex(this.canvasInteraction, this.Point(x,y),1, "black",  "black");
+            // })
             this.drawHex(this.canvasInteraction, this.Point(x,y),1, "black",  "grey");
             return true;
         }
@@ -86,6 +99,7 @@ constructor(props){
         let cRightSide = Math.round((canvasWidth - hexOrigin.x)/horizDist);
         let rTopSide = Math.round(hexOrigin.y /verticalDist);
         let rBottomSide = Math.round((canvasHeight - hexOrigin.y)/verticalDist);
+        var hexPathMap = [];
         var p = 0;
         for(let r = 0; r<= rBottomSide; r++){
             if(r%2 === 0 && r !==0){
@@ -95,9 +109,12 @@ constructor(props){
                 //deconstruct hexToPixel result
                 const{x,y}= this.hexToPixel(this.Hex(c-p,r));
                 if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
-
                     this.drawHex(this.canvasHex, this.Point(x,y),1, "black",  "grey");
                     //this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c-p,r,-(c-p)-r));
+                    var bottomH = JSON.stringify(this.Hex(c-p,r,-(c-p)-r));
+                    if(!this.state.obstacles.includes(bottomH)){
+                        hexPathMap.push(bottomH);
+                    }
                 }
             }
         }
@@ -112,9 +129,19 @@ constructor(props){
                 if((x > width/2 && x < canvasWidth - width/2 ) && (y > height/2 && y < canvasHeight - height/2)){
                     this.drawHex(this.canvasHex, this.Point(x,y),1, "black",  "grey");
                     //this.drawHexCords(this.canvasHex, this.Point(x,y), this.Hex(c+n,r,-(c+n)-r));
+                    var topH = JSON.stringify(this.Hex(c+n,r,-(c+n)-r));
+                    if(!this.state.obstacles.includes(topH)){
+                        hexPathMap.push(topH);
+                    }
                 }
             }
         }
+        //used because we cannot modify the state directly
+        hexPathMap = [].concat(hexPathMap);
+        this.setState(
+            {hexPathMap: hexPathMap},
+            this.breadthFirstSearchCallback = () => this.breadthFirstSearch(this.state.playerPosition)
+        )
     }
 
     drawHex(canvasID, center, lineWidth, lineColor, fillColor){
@@ -323,53 +350,57 @@ constructor(props){
     }
 
     handleClick(e){
-        this.addObstacles();
+        //used to set obstacles
+        //this.addObstacles();
         // this.setState({
         //     playerPosition: this.state.currentHex
         // })
     }
 
-    addObstacles(){
-        const {c,r,s} = this.state.currentHex;
-        let obstacles = this.state.obstacles;
-        //it is difficult to compare objects. So instead of comparing objects we convert the objects to strings 
-        //to compare with JSON.stringify, and then use parse to get coords if needed
-        if(!obstacles.includes(JSON.stringify(this.Hex(c,r,s)))){
-            obstacles = [].concat(obstacles, JSON.stringify(this.Hex(c,r,s)))
-            //obstacles.push(this.state.currentHex);
-        }
-        else{
-            obstacles.map((l,i)=> {
-                if(l == JSON.stringify(this.Hex(c,r,s))){
-                    //slicing before and after item??
-                    obstacles = obstacles.slice(0,i).concat(obstacles.slice(i+1));
-                }
-            })
-        }
-        this.setState({
-            obstacles: obstacles
+    drawObstacles(){
+        this.state.obstacles.map((l) => {
+            const {c,r,s} = JSON.parse(l);
+            const {x,y} = this.hexToPixel(this.Hex(c,r,s));
+            this.drawHex(this.canvasHex, this.Point(x,y), 1, "black", "black");
         })
     }
 
-    handleExpandClick(){
+    // addObstacles(){
+    //     const {c,r,s} = this.state.currentHex;
+    //     let obstacles = this.state.obstacles;
+    //     //it is difficult to compare objects. So instead of comparing objects we convert the objects to strings 
+    //     //to compare with JSON.stringify, and then use parse to get coords if needed
+    //     if(!obstacles.includes(JSON.stringify(this.Hex(c,r,s)))){
+    //         obstacles = [].concat(obstacles, JSON.stringify(this.Hex(c,r,s)))
+    //         //obstacles.push(this.state.currentHex);
+    //     }
+    //     else{
+    //         obstacles.map((l,i)=> {
+    //             if(l == JSON.stringify(this.Hex(c,r,s))){
+    //                 //slicing before and after item??
+    //                 obstacles = obstacles.slice(0,i).concat(obstacles.slice(i+1));
+    //             }
+    //         })
+    //     }
+    //     this.setState({
+    //         obstacles: obstacles
+    //     })
+    // }
+
+    breadthFirstSearch(playerPosition){
         //handles breadth first search of neighboring hexes
-        var frontier = this.state.frontier;
-        var camefrom = this.state.camefrom;
-        if(frontier == 0){
-            frontier.push(this.Hex(0,0,0));
-            camefrom[JSON.stringify(this.Hex(0,0,0))] = JSON.stringify(null);
-        }
-        let n = 0;
-        while(n<1){
+        var frontier = [playerPosition];
+        var camefrom = {};
+        camefrom[JSON.stringify(playerPosition)] = JSON.stringify(playerPosition);
+        while(frontier.length != 0){
             var current = frontier.shift();
             let arr = this.getNeighbors(current);
             arr.map((l)=> {
-                if(!camefrom.hasOwnProperty(JSON.stringify(l)) && !this.state.obstacles.includes(JSON.stringify(l))){
+                if(!camefrom.hasOwnProperty(JSON.stringify(l)) && !this.state.hexPathMap.includes(JSON.stringify(l))){
                     frontier.push(l);
                     camefrom[JSON.stringify(l)] = JSON.stringify(current);
                 }
             })
-            n++
         }
         camefrom = Object.assign({}, camefrom);
         this.setState({
